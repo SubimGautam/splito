@@ -22,12 +22,12 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    super.dispose();
+    super.dispose(); 
   }
 
-  @override
+  @override 
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.of(context).padding.bottom; 
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -155,7 +155,7 @@ class _SignInScreenState extends State<SignInScreen> {
           suffixIcon: isPassword
               ? IconButton(icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: onToggleVisibility)
               : null,
-          border: InputBorder.none,
+          border: InputBorder.none, 
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
       ),
