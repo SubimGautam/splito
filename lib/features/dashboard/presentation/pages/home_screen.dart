@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onNavItem(int index) => setState(() => _selectedIndex = index);
 
   Color _avatarColor(String initial) {
-    final colors = [
+    final colors = [ 
       Colors.teal,
       Colors.indigo,
       Colors.deepPurple,
