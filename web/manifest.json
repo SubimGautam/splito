@@ -1,6 +1,6 @@
 {
-    "name": "splito",
-    "short_name": "splito",
+    "name": "splito_project",
+    "short_name": "splito_project",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

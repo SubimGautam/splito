@@ -1,4 +1,4 @@
-# splito
+# splito_project
 
 A new Flutter project.
 

@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
-import 'screens/signin_page.dart';
+import 'package:splito_project/features/splash/presentation/pages/splash_page.dart';
 
 void main() {
-  runApp(const SplitifyApp());
+  runApp(const MyApp());
 }
 
-class SplitifyApp extends StatelessWidget {
-  const SplitifyApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Splito',
       debugShowCheckedModeBanner: false,
-      title: 'Splitify',
       theme: ThemeData(
-        primarySwatch: Colors.amber,
-        fontFamily: 'Roboto',
+        useMaterial3: true,
+        fontFamily: 'Inter',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1DBA8A),
+          brightness: Brightness.light,
+        ),
       ),
-      home: const SignInScreen(),
+      home: const SplashScreen(),
     );
   }
 }
