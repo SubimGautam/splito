@@ -1,5 +1,5 @@
 class HiveTableConstant {
-  HiveTableConstant._();
+  HiveTableConstant._(); 
 
   //database name
   static const String dbName = 'bill_splitter_app_db';
