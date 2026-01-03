@@ -17,5 +17,5 @@ class HiveTableConstant {
   static const String categoryTable = 'category_table';
 
   static const int commentTypeId = 0;
-  static const String commentTable = 'groups_table';
+  static const String commentTable = 'groups_table'; 
 }
