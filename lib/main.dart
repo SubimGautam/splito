@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:splito_project/features/splash/presentation/pages/splash_page.dart';
 
-void main() {
+void main() { 
   runApp(const MyApp());
 }
 
