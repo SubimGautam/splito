@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
-
-// Remove the signup_page import from here initially
-// We'll add it back after we confirm the structure
+import 'package:splito_project/features/auth/presentation/pages/signup_page.dart'; // Add this
+import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -18,16 +17,19 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _obscurePassword = true;
   final Color mustard = const Color(0xFFC79C00);
 
+  // Instantiate the local data source
+  final _localAuthDataSource = LocalAuthDataSourceImpl();
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    super.dispose(); 
+    super.dispose();
   }
 
-  @override 
+  @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom; 
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -56,7 +58,12 @@ class _SignInScreenState extends State<SignInScreen> {
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 40),
-              _buildTextField(controller: _emailController, hint: 'Email', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+              _buildTextField(
+                controller: _emailController,
+                hint: 'Email',
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _passwordController,
@@ -87,8 +94,13 @@ class _SignInScreenState extends State<SignInScreen> {
                     ],
                   ),
                   GestureDetector(
-                    onTap: () {},
-                    child: Text('Forgot password?', style: TextStyle(color: mustard, fontWeight: FontWeight.w600, fontSize: 14)),
+                    onTap: () {
+                      // You can implement forgot password later
+                    },
+                    child: Text(
+                      'Forgot password?',
+                      style: TextStyle(color: mustard, fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
                   ),
                 ],
               ),
@@ -99,11 +111,15 @@ class _SignInScreenState extends State<SignInScreen> {
                   const Text("Don't have an account? "),
                   GestureDetector(
                     onTap: () {
-                      // Temporarily comment this out to test
-                      // Navigator.push(context, MaterialPageRoute(builder: (_) => SignUpScreen()));
-                      print('Sign up tapped');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                      );
                     },
-                    child: Text('Sign up', style: TextStyle(color: mustard, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Sign up',
+                      style: TextStyle(color: mustard, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
@@ -114,15 +130,53 @@ class _SignInScreenState extends State<SignInScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+                    onPressed: () async {
+                      final username = _emailController.text.trim();
+                      final password = _passwordController.text;
+
+                      if (username.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter email and password')),
+                        );
+                        return;
+                      }
+
+                      final savedCredentials = await _localAuthDataSource.getCredentials();
+
+                      if (savedCredentials == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No user registered. Please signup first.')),
+                        );
+                        return;
+                      }
+
+                      if (username == savedCredentials['username'] &&
+                          password == savedCredentials['password']) {
+                        // Successful login
+                        if (!mounted) return;
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Login successful!')),
+                        );
+                      } else {
+                        // Wrong credentials
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Invalid username or password')),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mustard,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       elevation: 4,
                     ),
-                    child: const Text('Sign in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: const Text(
+                      'Sign in',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
@@ -153,9 +207,12 @@ class _SignInScreenState extends State<SignInScreen> {
           hintStyle: TextStyle(color: Colors.grey[500]),
           prefixIcon: Icon(icon, color: Colors.grey[600]),
           suffixIcon: isPassword
-              ? IconButton(icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: onToggleVisibility)
+              ? IconButton(
+                  icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]),
+                  onPressed: onToggleVisibility,
+                )
               : null,
-          border: InputBorder.none, 
+          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
       ),
