@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
 import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
+import 'package:splito_project/features/auth/data/datasource/remote/remote_auth_datasource.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -15,15 +18,103 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agree = false;
   bool _obscurePassword = true;
   final Color mustard = const Color(0xFFC79C00);
+  
+  bool _isLoading = false;
 
-  // Local data source instance
   final _localAuthDataSource = LocalAuthDataSourceImpl();
+  final _remoteAuthDataSource = RemoteAuthDataSourceImpl();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signUp() async {
+    print('🎯 ===== SIGNUP BUTTON PRESSED =====');
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      print('❌ Validation failed: Empty fields');
+      _showSnackBar('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      print('❌ Validation failed: Password too short');
+      _showSnackBar('Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('🚀 Calling remoteAuthDataSource.signUp()...');
+      final result = await _remoteAuthDataSource.signUp(email, password);
+      
+      print('✅ Remote signup successful: $result');
+      
+      // Save locally if needed
+      await _localAuthDataSource.saveCredentials(email, password);
+      
+      if (mounted) {
+        _showSnackBar('Account created successfully!');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      print('❌ Signup error: $e');
+      if (mounted) {
+        _showSnackBar('Registration failed: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testDirectApiCall() async {
+    print('🧪 Testing direct API call...');
+    
+    try {
+      final email = 'test_${DateTime.now().millisecondsSinceEpoch}@test.com';
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:5000/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'password': 'password123'
+        }),
+      );
+      
+      print('🧪 Direct API Status: ${response.statusCode}');
+      print('🧪 Response: ${response.body}');
+      
+      if (response.statusCode == 201) {
+        _showSnackBar('Direct API test successful!');
+      }
+    } catch (e) {
+      print('🧪 Direct API Error: $e');
+      _showSnackBar('Direct API failed: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -37,7 +128,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context), // Go back to login
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
@@ -89,7 +180,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         height: 24,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: mustard.withOpacity(0.9), width: 2),
+                          border: Border.all(
+                            color: Color.fromRGBO(199, 156, 0, 0.9),
+                            width: 2,
+                          ),
                           color: _agree ? mustard : Colors.white,
                         ),
                         child: _agree
@@ -127,54 +221,40 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _agree
-                        ? () async {
-                            final email = _emailController.text.trim();
-                            final password = _passwordController.text;
-
-                            // Basic validation
-                            if (email.isEmpty || password.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please fill in all fields')),
-                              );
-                              return;
-                            }
-
-                            if (password.length < 6) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Password must be at least 6 characters')),
-                              );
-                              return;
-                            }
-
-                            // Save credentials locally
-                            await _localAuthDataSource.saveCredentials(email, password);
-
-                            // Success feedback
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Account created successfully!')),
-                            );
-
-                            // Navigate to Home (or Login if you prefer)
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const HomeScreen()),
-                            );
-                          }
-                        : null,
+                    onPressed: _agree && !_isLoading ? _signUp : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mustard,
-                      disabledBackgroundColor: mustard.withOpacity(0.5),
+                      disabledBackgroundColor: Color.fromRGBO(199, 156, 0, 0.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       elevation: 4,
                     ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Sign up',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                  ),
+                ),
+
+                // Test Button
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _testDirectApiCall,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    ),
                     child: const Text(
-                      'Sign up',
+                      'Test Direct API',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ),
                 ),
+
                 SizedBox(height: bottomPadding + 20),
               ],
             ),
@@ -184,7 +264,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // Reusable text field matching your login page style
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
@@ -205,7 +284,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         keyboardType: keyboardType,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[500]),
+          hintStyle: const TextStyle(color: Colors.grey),
           prefixIcon: Icon(icon, color: Colors.grey[600]),
           suffixIcon: isPassword
               ? IconButton(

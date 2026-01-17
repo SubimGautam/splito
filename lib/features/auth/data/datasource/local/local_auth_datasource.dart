@@ -15,6 +15,7 @@ class LocalAuthDataSourceImpl implements LocalAuthDataSource {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyUsername, username);
     await prefs.setString(_keyPassword, password);
+    print('💾 Local credentials saved for: $username');
   }
 
   @override
@@ -24,8 +25,10 @@ class LocalAuthDataSourceImpl implements LocalAuthDataSource {
     final password = prefs.getString(_keyPassword);
 
     if (username != null && password != null) {
+      print('💾 Local credentials found for: $username');
       return {'username': username, 'password': password};
     }
+    print('💾 No local credentials found');
     return null;
   }
 
@@ -34,5 +37,6 @@ class LocalAuthDataSourceImpl implements LocalAuthDataSource {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUsername);
     await prefs.remove(_keyPassword);
+    print('💾 Local credentials cleared');
   }
 }

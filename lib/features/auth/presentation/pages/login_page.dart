@@ -1,13 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
-import 'package:splito_project/features/auth/presentation/pages/signup_page.dart'; // Add this
+import 'package:splito_project/features/auth/presentation/pages/signup_page.dart';
 import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
+import 'package:splito_project/features/auth/data/datasource/remote/remote_auth_datasource.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState(); 
+  State<SignInScreen> createState() => _SignInScreenState();
 }
 
 class _SignInScreenState extends State<SignInScreen> {
@@ -16,15 +19,95 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
   final Color mustard = const Color(0xFFC79C00);
+  
+  bool _isLoading = false;
 
-  // Instantiate the local data source
   final _localAuthDataSource = LocalAuthDataSourceImpl();
+  final _remoteAuthDataSource = RemoteAuthDataSourceImpl();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    print('🎯 ===== LOGIN BUTTON PRESSED =====');
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Please enter email and password');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('🚀 Calling remoteAuthDataSource.signIn()...');
+      final result = await _remoteAuthDataSource.signIn(email, password);
+      
+      print('✅ Remote login successful: $result');
+      
+      if (_rememberMe) {
+        await _localAuthDataSource.saveCredentials(email, password);
+      }
+      
+      if (mounted) {
+        _showSnackBar('Login successful!');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      print('❌ Login error: $e');
+      if (mounted) {
+        _showSnackBar('Login failed: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testBackendConnection() async {
+    try {
+      print('🧪 Testing backend connection...');
+      
+      final urls = [
+        'http://localhost:5000/api/health',
+        'http://127.0.0.1:5000/api/health',
+        'http://10.0.2.2:5000/api/health',
+      ];
+      
+      for (var url in urls) {
+        try {
+          final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+          print('✅ $url - Status: ${response.statusCode}');
+          print('Response: ${response.body}');
+        } catch (e) {
+          print('❌ $url - Error: $e');
+        }
+      }
+    } catch (e) {
+      print('❌ Test failed: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -130,59 +213,31 @@ class _SignInScreenState extends State<SignInScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      final username = _emailController.text.trim();
-                      final password = _passwordController.text;
-
-                      if (username.isEmpty || password.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter email and password')),
-                        );
-                        return;
-                      }
-
-                      final savedCredentials = await _localAuthDataSource.getCredentials();
-
-                      if (savedCredentials == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('No user registered. Please signup first.')),
-                        );
-                        return;
-                      }
-
-                      if (username == savedCredentials['username'] &&
-                          password == savedCredentials['password']) {
-                        // Successful login
-                        if (!mounted) return;
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const HomeScreen()),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Login successful!')),
-                        );
-                      } else {
-                        // Wrong credentials
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invalid username or password')),
-                        );
-                      }
-                    },
+                    onPressed: _isLoading ? null : _signIn,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mustard,
+                      disabledBackgroundColor: mustard.withOpacity(0.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       elevation: 4,
                     ),
-                    child: const Text(
-                      'Sign in',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Sign in',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _testBackendConnection,
+        child: const Icon(Icons.wifi),
+        backgroundColor: mustard,
+        tooltip: 'Test Backend Connection',
       ),
     );
   }
@@ -204,7 +259,7 @@ class _SignInScreenState extends State<SignInScreen> {
         keyboardType: keyboardType,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[500]),
+          hintStyle: const TextStyle(color: Colors.grey),
           prefixIcon: Icon(icon, color: Colors.grey[600]),
           suffixIcon: isPassword
               ? IconButton(
