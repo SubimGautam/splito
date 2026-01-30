@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
 import 'package:splito_project/features/auth/presentation/pages/signup_page.dart';
 import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
@@ -52,6 +54,9 @@ class _SignInScreenState extends State<SignInScreen> {
       
       print('✅ Remote login successful: $result');
       
+      // ✅ ADD THIS: Debug token storage after login
+      await _debugTokenStorage();
+      
       if (_rememberMe) {
         await _localAuthDataSource.saveCredentials(email, password);
       }
@@ -75,6 +80,47 @@ class _SignInScreenState extends State<SignInScreen> {
         });
       }
     }
+  }
+
+  // Helper method for min function
+  int min(int a, int b) => a < b ? a : b;
+
+  Future<void> _debugTokenStorage() async {
+    print("=" * 50);
+    print("🔍 DEBUGGING TOKEN STORAGE");
+    print("=" * 50);
+    
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    
+    print("📋 All SharedPreferences keys:");
+    for (var key in keys) {
+      final value = prefs.get(key);
+      print("   • $key: $value");
+    }
+    
+    // Check specifically for token
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      print("❌❌❌ NO TOKEN FOUND!");
+      print("The token is NOT being saved after login!");
+      
+      // Check for other possible token keys
+      final token1 = prefs.getString('token');
+      final token2 = prefs.getString('jwt_token');
+      final token3 = prefs.getString('jwt');
+      
+      print("🔍 Checking other possible token keys:");
+      print("   • 'token': ${token1 != null ? 'FOUND' : 'NOT FOUND'}");
+      print("   • 'jwt_token': ${token2 != null ? 'FOUND' : 'NOT FOUND'}");
+      print("   • 'jwt': ${token3 != null ? 'FOUND' : 'NOT FOUND'}");
+    } else {
+      print("✅ Token FOUND in SharedPreferences!");
+      print("   Length: ${token.length}");
+      print("   Preview: ${token.substring(0, min(30, token.length))}...");
+    }
+    
+    print("=" * 50);
   }
 
   Future<void> _testBackendConnection() async {
@@ -233,11 +279,25 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _testBackendConnection,
-        child: const Icon(Icons.wifi),
-        backgroundColor: mustard,
-        tooltip: 'Test Backend Connection',
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _debugTokenStorage,
+            child: const Icon(Icons.bug_report),
+            backgroundColor: Colors.blue,
+            tooltip: 'Debug Token Storage',
+            heroTag: 'debug_token',
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: _testBackendConnection,
+            child: const Icon(Icons.wifi),
+            backgroundColor: mustard,
+            tooltip: 'Test Backend Connection',
+            heroTag: 'test_backend',
+          ),
+        ],
       ),
     );
   }
