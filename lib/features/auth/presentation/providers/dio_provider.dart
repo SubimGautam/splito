@@ -4,38 +4,43 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    baseUrl: 'http://10.0.2.2:5000/api', // For Android emulator
-    // baseUrl: 'http://localhost:5000/api', // For iOS simulator
-    // baseUrl: 'http://192.168.x.x:5000/api', // For physical device (use your computer's IP)
+    baseUrl: 'http://10.0.2.2:5000/api', // Android emulator
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: {'Content-Type': 'application/json'},
+    validateStatus: (status) => true, // Don't throw on any status
   ));
 
-  // Add interceptor to add token to requests
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token');
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        print('🌐 Request: ${options.method} ${options.path}');
-        return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        print('✅ Response: ${response.statusCode}');
-        return handler.next(response);
-      },
-      onError: (error, handler) {
-        print('❌ Error: ${error.message}');
-        return handler.next(error);
-      },
-    ),
-  );
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      final prefs = await SharedPreferences.getInstance();
+      // Try both possible keys
+      final token = prefs.getString('auth_token') ?? prefs.getString('token');
+      
+      print('🔑 Token from prefs: $token');
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+        print('✅ Added token to request');
+      } else {
+        print('❌ No token found in SharedPreferences');
+        // Print all keys for debugging
+        print('📋 Available keys: ${prefs.getKeys()}');
+      }
+      print('🌐 Request: ${options.method} ${options.path}');
+      return handler.next(options);
+    },
+    onResponse: (response, handler) {
+      print('✅ Response: ${response.statusCode}');
+      return handler.next(response);
+    },
+    onError: (error, handler) {
+      print('❌ Error: ${error.message}');
+      if (error.response?.statusCode == 401) {
+        print('🔴 Unauthorized! Token may be invalid or expired.');
+      }
+      return handler.next(error);
+    },
+  ));
 
   return dio;
 });

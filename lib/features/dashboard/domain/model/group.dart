@@ -25,15 +25,4 @@ class Group {
       totalBalance: (json['totalBalance'] ?? 0).toDouble(),
     );
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'members': members,
-      'createdBy': createdBy,
-      'createdAt': createdAt.toIso8601String(),
-      'totalBalance': totalBalance,
-    };
-  }
 }

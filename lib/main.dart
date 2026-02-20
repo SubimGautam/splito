@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_project/features/splash/presentation/pages/splash_page.dart';
+import 'features/dashboard/presentation/pages/home_screen.dart';
 
-void main() { 
-  runApp(const MyApp());
+void main() {
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
