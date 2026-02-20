@@ -27,6 +27,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _localAuthDataSource = LocalAuthDataSourceImpl();
   final _remoteAuthDataSource = RemoteAuthDataSourceImpl();
 
+  static const Color kBackground = Color(0xFF0F1217);
+  static const Color kSurface = Color(0xFF171C24);
+  static const Color kSurfaceElevated = Color(0xFF1F2630);
+  static const Color kTextPrimary = Color(0xFFF8FAFC);
+  static const Color kTextSecondary = Color(0xFF94A3B8);
+  static const Color kAccent = Color(0xFF22D3EE);
+  static const Color kAccentDark = Color(0xFF0891B2);
+  static const Color kPositive = Color(0xFF10B981);
+  static const Color kNegative = Color(0xFFEF4444);
+  static const Color kDivider = Color(0xFF2A3344);
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -129,12 +140,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: kBackground,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: kTextPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -147,7 +158,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 30),
                 const Text(
                   'Create account 🧑‍💻',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kTextPrimary),
                 ),
                 const SizedBox(height: 40),
 
@@ -155,7 +166,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _usernameController,
                   hint: 'Username',
                   icon: Icons.person_outline,
-                ),
+                  key: const Key('username_field'), // Add this
+                    ),
                 const SizedBox(height: 16),
 
                 _buildTextField(
@@ -163,6 +175,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   hint: 'Email',
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
+                  key: const Key('email_field'),
                 ),
                 const SizedBox(height: 16),
 
@@ -174,6 +187,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   isPassword: true,
                   onToggleVisibility: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
+                  key: const Key('password_field'),
                 ),
                 const SizedBox(height: 16),
 
@@ -183,19 +197,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   icon: Icons.lock_outline,
                   obscureText: _obscurePassword,
                   isPassword: true,
-                  onToggleVisibility: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
+                  onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                  key: const Key('confirm_password_field'), // Add this
+                    ),
                 const SizedBox(height: 30),
 
                 Row(
                   children: [
                     Checkbox(
                       value: _agree,
-                      activeColor: mustard,
+                      activeColor: kAccent,
                       onChanged: (v) => setState(() => _agree = v ?? false),
                     ),
-                    const Text('I agree to Terms & Policy'),
+                    const Text('I agree to Terms & Policy', style: TextStyle(color: kTextSecondary)),
                   ],
                 ),
 
@@ -207,7 +221,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _signUp,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: mustard,
+                      backgroundColor: kAccent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
@@ -253,41 +267,44 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    bool isPassword = false,
-    VoidCallback? onToggleVisibility,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
+  required TextEditingController controller,
+  required String hint,
+  required IconData icon,
+  TextInputType? keyboardType,
+  bool obscureText = false,
+  bool isPassword = false,
+  VoidCallback? onToggleVisibility,
+  Key? key,                      // ← ADD THIS (optional Key)
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: kSurface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: kDivider),
+    ),
+    child: TextField(
+      key: key,                    // ← PASS IT DOWN HERE
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: kTextSecondary),
+        prefixIcon: Icon(icon, color: kTextSecondary),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: kTextSecondary,
+                ),
+                onPressed: onToggleVisibility,
+              )
+            : null,
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(icon),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    obscureText
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
-                  onPressed: onToggleVisibility,
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        ),
-      ),
-    );
-  }
+      style: const TextStyle(color: kTextPrimary),
+    ),
+  );
+}
 }

@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Inter',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1DBA8A),
-          brightness: Brightness.light,
+          brightness: Brightness.dark,
         ),
       ),
       home: const SplashScreen(),
@@ -112,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen>
     final isSmallScreen = size.width < 360;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
+      backgroundColor: const Color(0xFF0F1217),
       body: Stack(
         children: [
           // Animated background circles
@@ -160,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
                           width: isSmallScreen ? 100 : 140,
                           height: isSmallScreen ? 100 : 140,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: const Color(0xFF171C24),
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: [
                               BoxShadow(
@@ -175,8 +175,8 @@ class _SplashScreenState extends State<SplashScreen>
                               center: Alignment.center,
                               radius: 0.9,
                               colors: [
-                                Colors.white,
-                                Colors.white.withOpacity(0.9),
+                                const Color(0xFF171C24),
+                                const Color(0xFF171C24).withOpacity(0.9),
                               ],
                             ),
                           ),
@@ -269,7 +269,7 @@ class _SplashScreenState extends State<SplashScreen>
                           style: TextStyle(
                             fontSize: isSmallScreen ? 14 : 16,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.white.withOpacity(0.6),
                             letterSpacing: 0.3,
                           ),
                         ),

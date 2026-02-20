@@ -27,6 +27,17 @@ class _SignInScreenState extends State<SignInScreen> {
   final _localAuthDataSource = LocalAuthDataSourceImpl();
   final _remoteAuthDataSource = RemoteAuthDataSourceImpl();
 
+  static const Color kBackground = Color(0xFF0F1217);
+  static const Color kSurface = Color(0xFF171C24);
+  static const Color kSurfaceElevated = Color(0xFF1F2630);
+  static const Color kTextPrimary = Color(0xFFF8FAFC);
+  static const Color kTextSecondary = Color(0xFF94A3B8);
+  static const Color kAccent = Color(0xFF22D3EE);
+  static const Color kAccentDark = Color(0xFF0891B2);
+  static const Color kPositive = Color(0xFF10B981);
+  static const Color kNegative = Color(0xFFEF4444);
+  static const Color kDivider = Color(0xFF2A3344);
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -81,6 +92,8 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     }
   }
+
+  
 
   // Helper method for min function
   int min(int a, int b) => a < b ? a : b;
@@ -161,12 +174,12 @@ class _SignInScreenState extends State<SignInScreen> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: kBackground,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: kTextPrimary),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -179,12 +192,12 @@ class _SignInScreenState extends State<SignInScreen> {
               const SizedBox(height: 20),
               const Text(
                 'Welcome back',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kTextPrimary),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Please enter your email & password to sign in.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: kTextSecondary),
               ),
               const SizedBox(height: 40),
               _buildTextField(
@@ -213,13 +226,13 @@ class _SignInScreenState extends State<SignInScreen> {
                         height: 24,
                         child: Checkbox(
                           value: _rememberMe,
-                          activeColor: mustard,
+                          activeColor: kAccent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           onChanged: (val) => setState(() => _rememberMe = val ?? false),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text('Remember me', style: TextStyle(fontSize: 14)),
+                      const Text('Remember me', style: TextStyle(fontSize: 14, color: kTextSecondary)),
                     ],
                   ),
                   GestureDetector(
@@ -228,7 +241,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     },
                     child: Text(
                       'Forgot password?',
-                      style: TextStyle(color: mustard, fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(color: kAccent, fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                   ),
                 ],
@@ -237,7 +250,7 @@ class _SignInScreenState extends State<SignInScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  const Text("Don't have an account? ", style: TextStyle(color: kTextSecondary)),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -247,7 +260,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     },
                     child: Text(
                       'Sign up',
-                      style: TextStyle(color: mustard, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: kAccent, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -261,10 +274,10 @@ class _SignInScreenState extends State<SignInScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _signIn,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: mustard,
-                      disabledBackgroundColor: mustard.withOpacity(0.5),
+                      backgroundColor: kAccent,
+                      disabledBackgroundColor: kAccent.withOpacity(0.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      elevation: 4,
+                      elevation: 0,
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
@@ -312,24 +325,29 @@ class _SignInScreenState extends State<SignInScreen> {
     VoidCallback? onToggleVisibility,
   }) {
     return Container(
-      decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kDivider),
+      ),
       child: TextField(
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey),
-          prefixIcon: Icon(icon, color: Colors.grey[600]),
+          hintStyle: const TextStyle(color: kTextSecondary),
+          prefixIcon: Icon(icon, color: kTextSecondary),
           suffixIcon: isPassword
               ? IconButton(
-                  icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]),
+                  icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: kTextSecondary),
                   onPressed: onToggleVisibility,
                 )
               : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
+        style: const TextStyle(color: kTextPrimary),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +21,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userEmail;
   
   final ProfileRemoteDataSource _dataSource = ProfileRemoteDataSource();
+
+  static const Color kBackground = Color(0xFF0F1217);
+  static const Color kSurface = Color(0xFF171C24);
+  static const Color kSurfaceElevated = Color(0xFF1F2630);
+  static const Color kTextPrimary = Color(0xFFF8FAFC);
+  static const Color kTextSecondary = Color(0xFF94A3B8);
+  static const Color kAccent = Color(0xFF22D3EE);
+  static const Color kAccentDark = Color(0xFF0891B2);
+  static const Color kPositive = Color(0xFF10B981);
+  static const Color kNegative = Color(0xFFEF4444);
+  static const Color kDivider = Color(0xFF2A3344);
 
   @override
   void initState() {
@@ -177,9 +189,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty) {
       print("🖼️ Displaying uploaded image: $_currentProfileImageUrl");
       return CircleAvatar(
-        radius: 60,
+        radius: 72,
         backgroundImage: NetworkImage(_currentProfileImageUrl!),
-        backgroundColor: Colors.grey[200],
+        backgroundColor: kSurfaceElevated,
         onBackgroundImageError: (exception, stackTrace) {
           print("❌ Error loading network image: $exception");
           setState(() {
@@ -193,21 +205,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_selectedImage != null) {
       print("🖼️ Displaying selected local image");
       return CircleAvatar(
-        radius: 60,
+        radius: 72,
         backgroundImage: FileImage(_selectedImage!),
-        backgroundColor: Colors.grey[200],
+        backgroundColor: kSurfaceElevated,
       );
     }
     
     // Default: Show placeholder
     print("🖼️ Displaying placeholder");
     return CircleAvatar(
-      radius: 60,
-      backgroundColor: Colors.blue[100],
+      radius: 72,
+      backgroundColor: kSurfaceElevated,
       child: Icon(
         Icons.person,
-        size: 50,
-        color: Colors.blue[800],
+        size: 80,
+        color: kTextSecondary,
       ),
     );
   }
@@ -216,22 +228,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
+        backgroundColor: kBackground,
         appBar: AppBar(
           title: const Text("Profile"),
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
+          backgroundColor: kSurface,
+          foregroundColor: kTextPrimary,
         ),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
+              CircularProgressIndicator(color: kAccent),
               SizedBox(height: 20),
               Text(
                 "Loading profile...",
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey,
+                  color: kTextSecondary,
                 ),
               ),
             ],
@@ -241,281 +254,302 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        actions: [
-          IconButton(
-            onPressed: _loadUserProfile,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+      backgroundColor: kBackground,
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [kBackground, kSurface.withOpacity(0.92)],
+              ),
+            ),
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              
-              // Profile Image with Upload Button
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  // Profile Image
-                  _buildProfileImage(),
-                  
-                  // Upload Button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: _isUploading ? null : _pickAndUploadImage,
-                      icon: _isUploading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                            ),
-                      tooltip: 'Upload Profile Image',
-                    ),
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 220,
+                floating: false,
+                pinned: true,
+                backgroundColor: kSurface,
+                actions: [
+                  IconButton(
+                    onPressed: _loadUserProfile,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
                   ),
                 ],
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // User Info
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text("Profile"),
+                  background: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      const Text(
-                        "User Information",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              kBackground.withOpacity(0.85),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 15),
-                      
-                      _buildInfoRow("Name", _userName ?? "Not set"),
-                      const Divider(height: 20),
-                      _buildInfoRow("Email", _userEmail ?? "Not set"),
-                      const Divider(height: 20),
-                      _buildInfoRow(
-                        "Profile Image Status",
-                        _currentProfileImageUrl != null 
-                            ? "✅ Uploaded" 
-                            : "❌ Not uploaded",
+                      Center(
+                        child: GestureDetector(
+                          onTap: _isUploading ? null : _pickAndUploadImage,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: kAccent.withOpacity(0.4), width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kAccent.withOpacity(0.25),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: _buildProfileImage(),
+                              ),
+                              Positioned(
+                                bottom: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: kAccent,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: kSurface, width: 3),
+                                  ),
+                                  child: _isUploading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 3,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.camera_alt, size: 20, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 30),
-              
-              // Upload Status
-              if (_isUploading)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        const Text(
-                          "Uploading image...",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.blue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Please wait while your image is being uploaded",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              
-              // Debug Info (only in debug mode)
-              if (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty)
-                Card(
-                  color: Colors.grey[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.info, size: 16, color: Colors.grey),
-                            const SizedBox(width: 5),
-                            const Text(
-                              "Debug Info:",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: _currentProfileImageUrl!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("URL copied to clipboard"),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.copy, size: 16),
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        SelectableText(
-                          _currentProfileImageUrl!,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              
-              // Tips Section
-              Card(
-                color: Colors.blue[50],
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.lightbulb, size: 20, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Text(
-                            "Tips:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                      Text(
+                        _userName ?? "Your Name",
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: kTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _userEmail ?? "email@domain.com",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: kTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kSurfaceElevated.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  _buildModernInfoRow(Icons.person_outline, "Full name", _userName ?? "—"),
+                                  const Divider(color: kDivider, height: 32),
+                                  _buildModernInfoRow(Icons.email_outlined, "Email", _userEmail ?? "—"),
+                                  const Divider(color: kDivider, height: 32),
+                                  _buildModernInfoRow(
+                                    Icons.image_outlined,
+                                    "Profile photo",
+                                    _currentProfileImageUrl != null ? "Set" : "Not set",
+                                    color: _currentProfileImageUrl != null ? kPositive : kNegative,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      _buildTip("If image doesn't appear, tap refresh button"),
-                      _buildTip("Make sure you have stable internet connection"),
-                      _buildTip("Image will be saved permanently to your profile"),
+                      const SizedBox(height: 32),
+                      Text(
+                        "Tips",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: kTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...[
+                        "Tap your photo to change it",
+                        "Clear cache if image doesn't update",
+                        "Use high quality images for best result"
+                      ].map((tip) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.check_circle, size: 16, color: kAccent),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(tip, style: TextStyle(color: kTextSecondary)),
+                                ),
+                              ],
+                            ),
+                          )),
+                      if (_isUploading)
+                        Card(
+                          color: kSurfaceElevated,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  "Uploading image...",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: kAccent,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                LinearProgressIndicator(
+                                  backgroundColor: kDivider,
+                                  valueColor: AlwaysStoppedAnimation<Color>(kAccent),
+                                ),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  "Please wait while your image is being uploaded",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: kTextSecondary,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty)
+                        Card(
+                          color: kDivider.withOpacity(0.5),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.info, size: 16, color: kTextSecondary),
+                                    const SizedBox(width: 5),
+                                    const Text(
+                                      "Debug Info:",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: kTextSecondary,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    IconButton(
+                                      onPressed: () {
+                                        Clipboard.setData(ClipboardData(text: _currentProfileImageUrl!));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text("URL copied to clipboard"),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.copy, size: 16),
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                SelectableText(
+                                  _currentProfileImageUrl!,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: kTextSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildModernInfoRow(IconData icon, String label, String value, {Color? color}) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            "$label:",
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
+        Icon(icon, size: 22, color: kAccent),
+        const SizedBox(width: 16),
         Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              color: value.contains("✅") 
-                  ? Colors.green 
-                  : value.contains("❌") 
-                    ? Colors.red 
-                    : Colors.black,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: kTextSecondary, fontSize: 14)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  color: color ?? kTextPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTip(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.circle, size: 6, color: Colors.blue),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.blueGrey,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
