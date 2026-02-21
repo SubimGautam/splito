@@ -74,10 +74,7 @@ class _SignInScreenState extends State<SignInScreen> {
       
       if (mounted) {
         _showSnackBar('Login successful!');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {
       print('❌ Login error: $e');

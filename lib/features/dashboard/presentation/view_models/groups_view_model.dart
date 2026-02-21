@@ -12,11 +12,14 @@ class GroupsViewModel extends StateNotifier<AsyncValue<List<Group>>> {
   GroupsViewModel(this._dataSource) : super(const AsyncValue.loading());
 
   Future<void> loadGroups() async {
+    print('loadGroups called');
     state = const AsyncValue.loading();
     try {
       final groups = await _dataSource.getGroups();
+      print('loadGroups success, count: ${groups.length}');
       state = AsyncValue.data(groups);
     } catch (e, st) {
+      print('loadGroups error: $e');
       state = AsyncValue.error(e, st);
     }
   }
@@ -24,9 +27,17 @@ class GroupsViewModel extends StateNotifier<AsyncValue<List<Group>>> {
   Future<void> createGroup(String name, List<String> members) async {
     try {
       await _dataSource.createGroup(name, members);
-      await loadGroups(); // refresh list
+      await loadGroups();
     } catch (e) {
-      // you could also show a snackbar here, but we'll handle in UI
+      rethrow;
+    }
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    try {
+      await _dataSource.deleteGroup(groupId);
+      await loadGroups();
+    } catch (e) {
       rethrow;
     }
   }

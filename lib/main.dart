@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:splito_project/features/splash/presentation/pages/splash_page.dart';
-import 'features/dashboard/presentation/pages/home_screen.dart';
+import 'features/splash/presentation/pages/splash_page.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/dashboard/presentation/pages/main_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -23,7 +24,12 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      home: const SplashScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/login': (context) => const SignInScreen(),
+        '/main': (context) => MainScreen(), // Remove 'const' here
+      },
     );
   }
 }

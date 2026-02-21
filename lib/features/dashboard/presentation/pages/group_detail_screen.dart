@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../view_models/group_detail_view_model.dart';
 import '../view_models/add_expense_view_model.dart';
+import '../view_models/all_expenses_view_model.dart'; // for deleteExpenseProvider
 import 'add_expense_screen.dart';
 import '../../domain/model/group_detail.dart';
 import '../../domain/model/balance.dart';
@@ -534,19 +535,29 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22D3EE).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Rs ${expense.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Color(0xFF22D3EE),
-                    fontWeight: FontWeight.bold,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22D3EE).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Rs ${expense.totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Color(0xFF22D3EE),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: () => _confirmDeleteExpense(context, expense.id),
+                  ),
+                ],
               ),
             ],
           ),
@@ -570,6 +581,38 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           Text(
             '${expense.date.day}/${expense.date.month}/${expense.date.year}',
             style: const TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteExpense(BuildContext context, String expenseId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Expense'),
+        content: const Text('Are you sure you want to delete this expense?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(deleteExpenseProvider)(expenseId);
+                // Refresh group detail
+                ref.read(groupDetailViewModelProvider.notifier).loadGroupDetail(widget.groupId);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to delete expense: $e')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),

@@ -26,10 +26,18 @@ class ExpenseRemoteDataSource {
       'splits': splits,
       'groupId': groupId,
     });
+
     if (response.statusCode == 201 && response.data['success'] == true) {
       return Expense.fromJson(response.data['data']);
     } else {
       throw Exception(response.data['message'] ?? 'Failed to create expense');
+    }
+  }
+
+  Future<void> deleteExpense(String expenseId) async {
+    final response = await _dio.delete('/expenses/$expenseId');
+    if (response.statusCode != 200 || response.data['success'] != true) {
+      throw Exception(response.data['message'] ?? 'Failed to delete expense');
     }
   }
 }
