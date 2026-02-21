@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../view_models/groups_view_model.dart';
 import '../view_models/all_expenses_view_model.dart';
+import '../view_models/group_balances_provider.dart';
 import 'add_expense_screen.dart';
 import 'group_detail_screen.dart';
 import 'profile_screen.dart';
@@ -61,7 +62,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   @override
   void initState() {
     super.initState();
-    // Load groups when tab is first created
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(groupsViewModelProvider.notifier).loadGroups();
     });
@@ -70,6 +70,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   @override
   Widget build(BuildContext context) {
     final groupsAsync = ref.watch(groupsViewModelProvider);
+    final balancesAsync = ref.watch(groupBalancesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
@@ -107,27 +108,37 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           ),
           data: (groups) {
-            if (groups.isEmpty) {
-              return ListView(
-                children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                  const Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.group_off, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No groups yet', style: TextStyle(color: Colors.grey)),
-                        SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: groups.length,
-              itemBuilder: (ctx, i) => _buildGroupCard(context, ref, groups[i]),
+            return balancesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text('Error loading balances')),
+              data: (balances) {
+                if (groups.isEmpty) {
+                  return ListView(
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                      const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.group_off, size: 80, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('No groups yet', style: TextStyle(color: Colors.grey)),
+                            SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: groups.length,
+                  itemBuilder: (ctx, i) {
+                    final group = groups[i];
+                    final total = balances[group.id] ?? 0.0;
+                    return _buildGroupCard(context, ref, group, total);
+                  },
+                );
+              },
             );
           },
         ),
@@ -135,7 +146,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     );
   }
 
-  Widget _buildGroupCard(BuildContext context, WidgetRef ref, Group group) {
+  Widget _buildGroupCard(BuildContext context, WidgetRef ref, Group group, double total) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
@@ -153,7 +164,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Rs ${group.totalBalance.toStringAsFixed(2)}',
+              'Rs ${total.toStringAsFixed(2)}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
@@ -170,7 +181,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               builder: (_) => GroupDetailScreen(groupId: group.id),
             ),
           ).then((_) {
-            // Refresh when returning from detail (in case expenses changed)
             ref.read(groupsViewModelProvider.notifier).loadGroups();
           });
         },
@@ -383,7 +393,6 @@ class ExpensesTab extends ConsumerWidget {
               try {
                 await ref.read(deleteExpenseProvider)(expenseId);
                 ref.refresh(allExpensesProvider);
-                // Also refresh groups to update balances
                 ref.refresh(groupsViewModelProvider);
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -400,13 +409,21 @@ class ExpensesTab extends ConsumerWidget {
   }
 }
 
-// Analytics tab – redesigned with better UI
+// Helper class for analytics data
+class GroupTotal {
+  final String name;
+  final double total;
+  GroupTotal({required this.name, required this.total});
+}
+
+// Analytics tab – redesigned with computed balances
 class AnalyticsTab extends ConsumerWidget {
   const AnalyticsTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(groupsViewModelProvider);
+    final balancesAsync = ref.watch(groupBalancesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
@@ -418,132 +435,145 @@ class AnalyticsTab extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
         data: (groups) {
-          if (groups.isEmpty) {
-            return const Center(child: Text('No data to show'));
-          }
-          // Sort groups by totalBalance descending
-          final sorted = List<Group>.from(groups)..sort((a, b) => b.totalBalance.compareTo(a.totalBalance));
-          final totalSpent = groups.fold(0.0, (sum, g) => sum + g.totalBalance);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Total spending card
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Total Spending',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Rs ${totalSpent.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Spending by Group',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                // Bar chart
-                Container(
-                  height: 250,
-                  padding: const EdgeInsets.all(8),
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      barGroups: sorted.asMap().entries.map((entry) {
-                        return BarChartGroupData(
-                          x: entry.key,
-                          barRods: [
-                            BarChartRodData(
-                              toY: entry.value.totalBalance,
-                              color: Colors.blue,
-                              width: 30,
-                              borderRadius: BorderRadius.circular(4),
+          return balancesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, st) => Center(child: Text('Error loading balances')),
+            data: (balances) {
+              if (groups.isEmpty) {
+                return const Center(child: Text('No data to show'));
+              }
+              // Create list of GroupTotal objects
+              final groupTotals = groups.map((g) {
+                return GroupTotal(
+                  name: g.name,
+                  total: balances[g.id] ?? 0.0,
+                );
+              }).toList();
+              // Sort descending by total
+              groupTotals.sort((a, b) => b.total.compareTo(a.total));
+              final totalSpent = groupTotals.fold(0.0, (sum, gt) => sum + gt.total);
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Total spending card
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Spending',
+                              style: TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Rs ${totalSpent.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                             ),
                           ],
-                        );
-                      }).toList(),
-                      titlesData: FlTitlesData(
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              if (value.toInt() < sorted.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    sorted[value.toInt()].name.length > 8
-                                        ? '${sorted[value.toInt()].name.substring(0, 6)}…'
-                                        : sorted[value.toInt()].name,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
-                          ),
-                        ),
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: true),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      gridData: const FlGridData(show: false),
-                      barTouchData: BarTouchData(
-                        touchTooltipData: BarTouchTooltipData(
-                          tooltipPadding: const EdgeInsets.all(8),
-                          tooltipMargin: 8,
-                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                            return BarTooltipItem(
-                              'Rs ${rod.toY.toStringAsFixed(2)}',
-                              const TextStyle(color: Colors.white),
-                            );
-                          },
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Breakdown',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...sorted.map((g) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(g.name)),
-                      Text(
-                        'Rs ${g.totalBalance.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Spending by Group',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    // Bar chart
+                    Container(
+                      height: 250,
+                      padding: const EdgeInsets.all(8),
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          barGroups: groupTotals.asMap().entries.map((entry) {
+                            return BarChartGroupData(
+                              x: entry.key,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: entry.value.total,
+                                  color: Colors.blue,
+                                  width: 30,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                          titlesData: FlTitlesData(
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (value, meta) {
+                                  if (value.toInt() < groupTotals.length) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        groupTotals[value.toInt()].name.length > 8
+                                            ? '${groupTotals[value.toInt()].name.substring(0, 6)}…'
+                                            : groupTotals[value.toInt()].name,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    );
+                                  }
+                                  return const Text('');
+                                },
+                              ),
+                            ),
+                            leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: true),
+                            ),
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          gridData: const FlGridData(show: false),
+                          barTouchData: BarTouchData(
+                            touchTooltipData: BarTouchTooltipData(
+                              tooltipPadding: const EdgeInsets.all(8),
+                              tooltipMargin: 8,
+                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                return BarTooltipItem(
+                                  'Rs ${rod.toY.toStringAsFixed(2)}',
+                                  const TextStyle(color: Colors.white),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                )),
-              ],
-            ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Breakdown',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ...groupTotals.map((gt) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(gt.name)),
+                          Text(
+                            'Rs ${gt.total.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),

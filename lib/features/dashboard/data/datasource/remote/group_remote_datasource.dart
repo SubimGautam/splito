@@ -32,19 +32,19 @@ class GroupRemoteDataSource {
     }
   }
 
-  Future<void> deleteGroup(String groupId) async {
-  final response = await _dio.delete('/groups/$groupId');
-  if (response.statusCode != 200 || response.data['success'] != true) {
-    throw Exception(response.data['message'] ?? 'Failed to delete group');
-  }
-}
-
   Future<GroupDetail> getGroupWithBalances(String groupId) async {
     final response = await _dio.get('/groups/$groupId/balances');
     if (response.statusCode == 200 && response.data['success'] == true) {
       return GroupDetail.fromJson(response.data['data']);
     } else {
       throw Exception(response.data['message'] ?? 'Failed to load group details');
+    }
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    final response = await _dio.delete('/groups/$groupId');
+    if (response.statusCode != 200 || response.data['success'] != true) {
+      throw Exception(response.data['message'] ?? 'Failed to delete group');
     }
   }
 }
