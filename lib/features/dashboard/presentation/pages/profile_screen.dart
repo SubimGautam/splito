@@ -6,7 +6,6 @@ import '../view_models/user_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:splito_project/features/dashboard/data/datasource/remote/user_remote_datasource.dart';
 import '../../../profile/data/datasource/profile_remote_datasource.dart';
 import '../../domain/model/user.dart';
 
@@ -20,7 +19,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   File? _selectedImage;
   bool _isUploading = false;
-  
+  String? _debugImageUrl; // For debugging
+
   final ProfileRemoteDataSource _dataSource = ProfileRemoteDataSource();
 
   static const Color kBackground = Color(0xFF0F1217);
@@ -29,7 +29,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   static const Color kTextPrimary = Color(0xFFF8FAFC);
   static const Color kTextSecondary = Color(0xFF94A3B8);
   static const Color kAccent = Color(0xFF22D3EE);
-  static const Color kAccentDark = Color(0xFF0891B2);
   static const Color kPositive = Color(0xFF10B981);
   static const Color kNegative = Color(0xFFEF4444);
   static const Color kDivider = Color(0xFF2A3344);
@@ -50,69 +49,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
 
     try {
-      print("🖼️ Starting image upload...");
-      print("📁 File path: ${image.path}");
+      print("=" * 50);
+      print("📤 UPLOADING IMAGE");
+      print("=" * 50);
       
       final result = await _dataSource.uploadProfileImage(_selectedImage!);
       
       print("✅ Upload response: $result");
-      
+
       if (result['success'] == true) {
         dynamic data = result['data'];
         String? imageUrl;
-        
+
         if (data is Map) {
-          imageUrl = data['profileImage'] ?? 
-                    data['fullUrl'] ?? 
-                    data['imageUrl'] ?? 
-                    data['url'];
+          imageUrl = data['profileImage'] ??
+              data['fullUrl'] ??
+              data['imageUrl'] ??
+              data['url'];
         }
-        
+
         if (imageUrl != null) {
-          print("🖼️ Upload successful! Image URL: $imageUrl");
+          print("🖼️ Raw image URL from upload: $imageUrl");
           
-          if (!imageUrl.startsWith('http')) {
-            imageUrl = 'http://10.0.2.2:5000$imageUrl';
-          }
-          
+          // Save to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('profile_image', imageUrl);
-          
-          // Refresh user data to get updated profile image
-          ref.refresh(userProvider);
-          
+
+          // Invalidate user provider to force refetch
+          ref.invalidate(userProvider);
+
           setState(() {
             _selectedImage = null;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("✅ Profile image updated successfully!"),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        } else {
-          print("⚠️ No image URL in response, but upload was successful");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("✅ Image uploaded! Refresh to see changes."),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 3),
             ),
           );
         }
       } else {
-        final errorMessage = result['message'] ?? 'Upload failed';
-        throw Exception(errorMessage);
+        throw Exception(result['message'] ?? "Upload failed");
       }
     } catch (e) {
       print("❌ Upload error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("❌ Upload failed: ${e.toString().replaceAll('Exception: ', '')}"),
+          content: Text("❌ ${e.toString()}"),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
         ),
       );
     } finally {
@@ -122,49 +107,107 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Widget _buildProfileImage(User? user) {
-    if (_selectedImage != null) {
-      return CircleAvatar(
-        radius: 72,
-        backgroundImage: FileImage(_selectedImage!),
-        backgroundColor: kSurfaceElevated,
-      );
+  String _getAccessibleImageUrl(String? url) {
+    print("=" * 50);
+    print("🔍 IMAGE URL TRANSFORMATION");
+    print("=" * 50);
+    print("📥 Original URL from backend: $url");
+    
+    if (url == null || url.isEmpty) {
+      print("⚠️ URL is null or empty");
+      return '';
     }
     
-    if (user?.profileImage != null && user!.profileImage!.isNotEmpty) {
-  String imageUrl = user.profileImage!;
-  // If the URL is relative (starts with '/'), prepend the base URL
-  if (!imageUrl.startsWith('http')) {
-    imageUrl = 'http://10.0.2.2:5000$imageUrl';
+    String imageUrl = url;
+    
+    // Handle localhost replacement for Android emulator
+    if (imageUrl.contains('localhost')) {
+      imageUrl = imageUrl.replaceFirst('localhost', '10.0.2.2');
+      print("🔄 Replaced localhost with 10.0.2.2: $imageUrl");
+    } 
+    // Handle relative paths
+    else if (!imageUrl.startsWith('http')) {
+      imageUrl = 'http://10.0.2.2:5000$imageUrl';
+      print("🔄 Added base URL: $imageUrl");
+    }
+    
+    // Add cache-busting timestamp
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final separator = imageUrl.contains('?') ? '&' : '?';
+    imageUrl = '$imageUrl${separator}t=$timestamp';
+    print("✅ Final image URL with cache buster: $imageUrl");
+    print("=" * 50);
+    
+    return imageUrl;
   }
-  return CircleAvatar(
-    radius: 72,
-    backgroundImage: NetworkImage(imageUrl),
-    backgroundColor: kSurfaceElevated,
-    onBackgroundImageError: (exception, stackTrace) {
-      print("❌ Error loading network image: $exception");
-      // Fallback to placeholder
-      setState(() {
-        // If you have a way to reset, but better to just show placeholder
-      });
-    },
+
+  Widget _buildProfileImage(User? user) {
+    const double size = 144; // 2 * 72
+
+    print("=" * 50);
+    print("🖼️ BUILDING PROFILE IMAGE");
+    print("=" * 50);
+    
+    // Priority 1: Selected image (before upload)
+    if (_selectedImage != null) {
+      print("📸 Using selected local image");
+      return ClipOval(
+        child: Image.file(
+          _selectedImage!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print("❌ Error loading selected image: $error");
+            return _buildPlaceholder();
+          },
+        ),
+      );
+    }
+
+    // Priority 2: User's profile image from provider
+    if (user?.profileImage != null && user!.profileImage!.isNotEmpty) {
+  print("🖼️ Loading image from: ${user.profileImage}");
+  return ClipOval(
+    child: Image.network(
+      user.profileImage!,
+      width: 144,
+      height: 144,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _buildPlaceholder(showProgress: true);
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print("❌ Image load error: $error");
+        return _buildPlaceholder();
+      },
+    ),
   );
 }
-    
-    return CircleAvatar(
-      radius: 72,
-      backgroundColor: kSurfaceElevated,
-      child: Icon(
-        Icons.person,
-        size: 80,
-        color: kTextSecondary,
+
+    print("👤 No profile image, showing placeholder");
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder({bool showProgress = false}) {
+    return Container(
+      width: 144,
+      height: 144,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFF1F2630),
       ),
+      child: showProgress
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF22D3EE)))
+          : const Icon(Icons.person, size: 80, color: Color(0xFF94A3B8)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(userProvider);
+
     return Scaffold(
       backgroundColor: kBackground,
       body: Stack(
@@ -187,7 +230,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 backgroundColor: kSurface,
                 actions: [
                   IconButton(
-                    onPressed: () => ref.refresh(userProvider),
+                    onPressed: () {
+                      print("🔄 Manual refresh triggered");
+                      ref.invalidate(userProvider);
+                    },
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Refresh',
                   ),
@@ -215,31 +261,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: Stack(
                             alignment: Alignment.bottomRight,
                             children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: kAccent.withOpacity(0.4), width: 3),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: kAccent.withOpacity(0.25),
-                                      blurRadius: 24,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                                child: userAsync.when(
-                                  data: (user) => _buildProfileImage(user),
-                                  loading: () => const CircleAvatar(
-                                    radius: 72,
-                                    backgroundColor: kSurfaceElevated,
-                                    child: CircularProgressIndicator(color: kAccent),
-                                  ),
-                                  error: (_, __) => CircleAvatar(
-                                    radius: 72,
-                                    backgroundColor: kSurfaceElevated,
-                                    child: Icon(Icons.error, color: kNegative, size: 40),
-                                  ),
-                                ),
+                              userAsync.when(
+                                data: (user) => _buildProfileImage(user),
+                                loading: () {
+                                  print("⏳ User data loading...");
+                                  return _buildPlaceholder(showProgress: true);
+                                },
+                                error: (error, stackTrace) {
+                                  print("❌ Error loading user data: $error");
+                                  return _buildPlaceholder();
+                                },
                               ),
                               Positioned(
                                 bottom: 4,
@@ -283,7 +314,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Text('Error loading profile: $e', style: const TextStyle(color: Colors.red)),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: () => ref.refresh(userProvider),
+                            onPressed: () => ref.invalidate(userProvider),
                             child: const Text('Retry'),
                           ),
                         ],
