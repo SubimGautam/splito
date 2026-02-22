@@ -417,6 +417,8 @@ class GroupTotal {
 }
 
 // Analytics tab – redesigned with computed balances
+// Analytics tab – redesigned with better chart readability
+// Analytics tab – values shown only on hover/tooltip
 class AnalyticsTab extends ConsumerWidget {
   const AnalyticsTab({super.key});
 
@@ -452,6 +454,11 @@ class AnalyticsTab extends ConsumerWidget {
               // Sort descending by total
               groupTotals.sort((a, b) => b.total.compareTo(a.total));
               final totalSpent = groupTotals.fold(0.0, (sum, gt) => sum + gt.total);
+              
+              // Determine max value for y-axis
+              final maxTotal = groupTotals.isNotEmpty ? groupTotals.first.total : 0.0;
+              final yInterval = (maxTotal / 5).ceilToDouble();
+              
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -485,9 +492,9 @@ class AnalyticsTab extends ConsumerWidget {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
-                    // Bar chart
+                    // Bar chart – exact values only on hover
                     Container(
-                      height: 250,
+                      height: 300,
                       padding: const EdgeInsets.all(8),
                       child: BarChart(
                         BarChartData(
@@ -501,6 +508,11 @@ class AnalyticsTab extends ConsumerWidget {
                                   color: Colors.blue,
                                   width: 30,
                                   borderRadius: BorderRadius.circular(4),
+                                  backDrawRodData: BackgroundBarChartRodData(
+                                    show: true,
+                                    color: Colors.grey.shade200,
+                                    toY: maxTotal,
+                                  ),
                                 ),
                               ],
                             );
@@ -509,15 +521,17 @@ class AnalyticsTab extends ConsumerWidget {
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
+                                reservedSize: 40,
                                 getTitlesWidget: (value, meta) {
-                                  if (value.toInt() < groupTotals.length) {
+                                  if (value.toInt() >= 0 && value.toInt() < groupTotals.length) {
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8),
                                       child: Text(
-                                        groupTotals[value.toInt()].name.length > 8
-                                            ? '${groupTotals[value.toInt()].name.substring(0, 6)}…'
+                                        groupTotals[value.toInt()].name.length > 10
+                                            ? '${groupTotals[value.toInt()].name.substring(0, 8)}…'
                                             : groupTotals[value.toInt()].name,
-                                        style: const TextStyle(fontSize: 12),
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                        textAlign: TextAlign.center,
                                       ),
                                     );
                                   }
@@ -525,8 +539,18 @@ class AnalyticsTab extends ConsumerWidget {
                                 },
                               ),
                             ),
-                            leftTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: true),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 48,
+                                interval: yInterval,
+                                getTitlesWidget: (value, meta) {
+                                  return Text(
+                                    'Rs ${value.toInt()}',
+                                    style: const TextStyle(fontSize: 11),
+                                  );
+                                },
+                              ),
                             ),
                             topTitles: const AxisTitles(
                               sideTitles: SideTitles(showTitles: false),
@@ -535,16 +559,34 @@ class AnalyticsTab extends ConsumerWidget {
                               sideTitles: SideTitles(showTitles: false),
                             ),
                           ),
-                          borderData: FlBorderData(show: false),
-                          gridData: const FlGridData(show: false),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade300),
+                              left: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          gridData: FlGridData(
+                            show: true,
+                            drawHorizontalLine: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: yInterval,
+                            getDrawingHorizontalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey.shade200,
+                                strokeWidth: 1,
+                              );
+                            },
+                          ),
                           barTouchData: BarTouchData(
+                            enabled: true,
                             touchTooltipData: BarTouchTooltipData(
                               tooltipPadding: const EdgeInsets.all(8),
                               tooltipMargin: 8,
                               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                 return BarTooltipItem(
                                   'Rs ${rod.toY.toStringAsFixed(2)}',
-                                  const TextStyle(color: Colors.white),
+                                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 );
                               },
                             ),
@@ -563,9 +605,16 @@ class AnalyticsTab extends ConsumerWidget {
                       child: Row(
                         children: [
                           Expanded(child: Text(gt.name)),
-                          Text(
-                            'Rs ${gt.total.toStringAsFixed(2)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              'Rs ${gt.total.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
                           ),
                         ],
                       ),

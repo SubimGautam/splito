@@ -18,10 +18,11 @@ class ProfileRemoteDataSource {
       throw Exception("Token not found. Please login again.");
     }
 
-    final uri = Uri.parse("$baseUrl/api/users/profile/image");
+    // Fix the endpoint to match your backend
+    final uri = Uri.parse("$baseUrl/api/users/upload-profile-image");
     print("🌐 Upload URL: $uri");
 
-    final request = http.MultipartRequest("PUT", uri);
+    final request = http.MultipartRequest("POST", uri); // Change to POST
 
     request.headers["Authorization"] = "Bearer $token";
     request.headers["Accept"] = "application/json";
@@ -35,7 +36,7 @@ class ProfileRemoteDataSource {
       
       request.files.add(
         await http.MultipartFile.fromPath(
-          "image",
+          "image", // This should match the field name expected by multer (you used 'image' in your backend)
           imageFile.path,
           filename: imageFile.path.split('/').last,
         ),

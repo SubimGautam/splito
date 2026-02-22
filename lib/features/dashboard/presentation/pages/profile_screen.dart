@@ -1,24 +1,25 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../view_models/user_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:splito_project/features/dashboard/data/datasource/remote/user_remote_datasource.dart';
 import '../../../profile/data/datasource/profile_remote_datasource.dart';
+import '../../domain/model/user.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   File? _selectedImage;
   bool _isUploading = false;
-  bool _isLoading = true;
-  String? _currentProfileImageUrl;
-  String? _userName;
-  String? _userEmail;
   
   final ProfileRemoteDataSource _dataSource = ProfileRemoteDataSource();
 
@@ -32,50 +33,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const Color kPositive = Color(0xFF10B981);
   static const Color kNegative = Color(0xFFEF4444);
   static const Color kDivider = Color(0xFF2A3344);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserProfile();
-  }
-
-  Future<void> _loadUserProfile() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Load user data from SharedPreferences or API
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Try to get user data from different possible keys
-      final userName = prefs.getString('user_name') ?? 
-                      prefs.getString('username') ?? 
-                      'User';
-      final userEmail = prefs.getString('user_email') ?? 
-                       prefs.getString('email') ?? 
-                       'user@example.com';
-      final profileImage = prefs.getString('profile_image');
-      
-      setState(() {
-        _userName = userName;
-        _userEmail = userEmail;
-        _currentProfileImageUrl = profileImage;
-      });
-      
-      print("👤 Loaded user profile:");
-      print("   - Name: $_userName");
-      print("   - Email: $_userEmail");
-      print("   - Profile Image: $_currentProfileImageUrl");
-      
-    } catch (e) {
-      print("❌ Error loading profile: $e");
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
@@ -96,14 +53,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print("🖼️ Starting image upload...");
       print("📁 File path: ${image.path}");
       
-      // Call the upload method
       final result = await _dataSource.uploadProfileImage(_selectedImage!);
       
       print("✅ Upload response: $result");
       
-      // Check if upload was successful
       if (result['success'] == true) {
-        // Extract image URL from response - handle different possible response structures
         dynamic data = result['data'];
         String? imageUrl;
         
@@ -117,49 +71,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (imageUrl != null) {
           print("🖼️ Upload successful! Image URL: $imageUrl");
           
-          // Ensure URL is complete (add base URL if needed)
           if (!imageUrl.startsWith('http')) {
             imageUrl = 'http://10.0.2.2:5000$imageUrl';
           }
           
-          // Save the image URL to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('profile_image', imageUrl);
           
-          // Also save user info if available in response
-          if (data is Map && data['user'] != null) {
-            final userData = data['user'];
-            if (userData['username'] != null) {
-              await prefs.setString('username', userData['username']);
-            }
-            if (userData['email'] != null) {
-              await prefs.setString('email', userData['email']);
-            }
-          }
+          // Refresh user data to get updated profile image
+          ref.refresh(userProvider);
           
-          // Update the UI
           setState(() {
-            _currentProfileImageUrl = imageUrl;
-            // Clear the selected image so we show the uploaded one
             _selectedImage = null;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Profile image updated successfully!"),
+            const SnackBar(
+              content: Text("✅ Profile image updated successfully!"),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: Duration(seconds: 3),
             ),
           );
-          
-          print("🎉 Profile image updated in UI");
         } else {
           print("⚠️ No image URL in response, but upload was successful");
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Image uploaded! Refresh to see changes."),
+            const SnackBar(
+              content: Text("✅ Image uploaded! Refresh to see changes."),
               backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 3),
+              duration: Duration(seconds: 3),
             ),
           );
         }
@@ -183,27 +122,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Build image widget - shows uploaded image if available, otherwise selected image
-  Widget _buildProfileImage() {
-    // First priority: Show uploaded image from backend
-    if (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty) {
-      print("🖼️ Displaying uploaded image: $_currentProfileImageUrl");
-      return CircleAvatar(
-        radius: 72,
-        backgroundImage: NetworkImage(_currentProfileImageUrl!),
-        backgroundColor: kSurfaceElevated,
-        onBackgroundImageError: (exception, stackTrace) {
-          print("❌ Error loading network image: $exception");
-          setState(() {
-            _currentProfileImageUrl = null;
-          });
-        },
-      );
-    }
-    
-    // Second priority: Show locally selected image (before upload)
+  Widget _buildProfileImage(User? user) {
     if (_selectedImage != null) {
-      print("🖼️ Displaying selected local image");
       return CircleAvatar(
         radius: 72,
         backgroundImage: FileImage(_selectedImage!),
@@ -211,8 +131,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     
-    // Default: Show placeholder
-    print("🖼️ Displaying placeholder");
+    if (user?.profileImage != null && user!.profileImage!.isNotEmpty) {
+  String imageUrl = user.profileImage!;
+  // If the URL is relative (starts with '/'), prepend the base URL
+  if (!imageUrl.startsWith('http')) {
+    imageUrl = 'http://10.0.2.2:5000$imageUrl';
+  }
+  return CircleAvatar(
+    radius: 72,
+    backgroundImage: NetworkImage(imageUrl),
+    backgroundColor: kSurfaceElevated,
+    onBackgroundImageError: (exception, stackTrace) {
+      print("❌ Error loading network image: $exception");
+      // Fallback to placeholder
+      setState(() {
+        // If you have a way to reset, but better to just show placeholder
+      });
+    },
+  );
+}
+    
     return CircleAvatar(
       radius: 72,
       backgroundColor: kSurfaceElevated,
@@ -226,33 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: kBackground,
-        appBar: AppBar(
-          title: const Text("Profile"),
-          backgroundColor: kSurface,
-          foregroundColor: kTextPrimary,
-        ),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: kAccent),
-              SizedBox(height: 20),
-              Text(
-                "Loading profile...",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: kTextSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
+    final userAsync = ref.watch(userProvider);
     return Scaffold(
       backgroundColor: kBackground,
       body: Stack(
@@ -275,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 backgroundColor: kSurface,
                 actions: [
                   IconButton(
-                    onPressed: _loadUserProfile,
+                    onPressed: () => ref.refresh(userProvider),
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Refresh',
                   ),
@@ -315,7 +227,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ],
                                 ),
-                                child: _buildProfileImage(),
+                                child: userAsync.when(
+                                  data: (user) => _buildProfileImage(user),
+                                  loading: () => const CircleAvatar(
+                                    radius: 72,
+                                    backgroundColor: kSurfaceElevated,
+                                    child: CircularProgressIndicator(color: kAccent),
+                                  ),
+                                  error: (_, __) => CircleAvatar(
+                                    radius: 72,
+                                    backgroundColor: kSurfaceElevated,
+                                    child: Icon(Icons.error, color: kNegative, size: 40),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 bottom: 4,
@@ -350,173 +274,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _userName ?? "Your Name",
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: kTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _userEmail ?? "email@domain.com",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: kTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kSurfaceElevated.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.25),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  _buildModernInfoRow(Icons.person_outline, "Full name", _userName ?? "—"),
-                                  const Divider(color: kDivider, height: 32),
-                                  _buildModernInfoRow(Icons.email_outlined, "Email", _userEmail ?? "—"),
-                                  const Divider(color: kDivider, height: 32),
-                                  _buildModernInfoRow(
-                                    Icons.image_outlined,
-                                    "Profile photo",
-                                    _currentProfileImageUrl != null ? "Set" : "Not set",
-                                    color: _currentProfileImageUrl != null ? kPositive : kNegative,
-                                  ),
-                                ],
-                              ),
-                            ),
+                  child: userAsync.when(
+                    data: (user) => _buildUserContent(user),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => Center(
+                      child: Column(
+                        children: [
+                          Text('Error loading profile: $e', style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => ref.refresh(userProvider),
+                            child: const Text('Retry'),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 32),
-                      Text(
-                        "Tips",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: kTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...[
-                        "Tap your photo to change it",
-                        "Clear cache if image doesn't update",
-                        "Use high quality images for best result"
-                      ].map((tip) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.check_circle, size: 16, color: kAccent),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(tip, style: TextStyle(color: kTextSecondary)),
-                                ),
-                              ],
-                            ),
-                          )),
-                      if (_isUploading)
-                        Card(
-                          color: kSurfaceElevated,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                const Text(
-                                  "Uploading image...",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: kAccent,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                LinearProgressIndicator(
-                                  backgroundColor: kDivider,
-                                  valueColor: AlwaysStoppedAnimation<Color>(kAccent),
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  "Please wait while your image is being uploaded",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: kTextSecondary,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (_currentProfileImageUrl != null && _currentProfileImageUrl!.isNotEmpty)
-                        Card(
-                          color: kDivider.withOpacity(0.5),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.info, size: 16, color: kTextSecondary),
-                                    const SizedBox(width: 5),
-                                    const Text(
-                                      "Debug Info:",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: kTextSecondary,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      onPressed: () {
-                                        Clipboard.setData(ClipboardData(text: _currentProfileImageUrl!));
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text("URL copied to clipboard"),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.copy, size: 16),
-                                      padding: EdgeInsets.zero,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 5),
-                                SelectableText(
-                                  _currentProfileImageUrl!,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: kTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -524,6 +296,177 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUserContent(User user) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          user.username,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: kTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          user.email,
+          style: TextStyle(
+            fontSize: 16,
+            color: kTextSecondary,
+          ),
+        ),
+        const SizedBox(height: 32),
+        Container(
+          decoration: BoxDecoration(
+            color: kSurfaceElevated.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildModernInfoRow(Icons.person_outline, "Username", user.username),
+                    const Divider(color: kDivider, height: 32),
+                    _buildModernInfoRow(Icons.email_outlined, "Email", user.email),
+                    const Divider(color: kDivider, height: 32),
+                    _buildModernInfoRow(
+                      Icons.image_outlined,
+                      "Profile photo",
+                      user.profileImage != null ? "Set" : "Not set",
+                      color: user.profileImage != null ? kPositive : kNegative,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+        const Text(
+          "Tips",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: kTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...[
+          "Tap your photo to change it",
+          "Clear cache if image doesn't update",
+          "Use high quality images for best result"
+        ].map((tip) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle, size: 16, color: kAccent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(tip, style: TextStyle(color: kTextSecondary)),
+              ),
+            ],
+          ),
+        )),
+        if (_isUploading)
+          Card(
+            color: kSurfaceElevated,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    "Uploading image...",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: kAccent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  LinearProgressIndicator(
+                    backgroundColor: kDivider,
+                    valueColor: AlwaysStoppedAnimation<Color>(kAccent),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Please wait while your image is being uploaded",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: kTextSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (user.profileImage != null && user.profileImage!.isNotEmpty)
+          Card(
+            color: kDivider.withOpacity(0.5),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.info, size: 16, color: kTextSecondary),
+                      const SizedBox(width: 5),
+                      const Text(
+                        "Debug Info:",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: kTextSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: user.profileImage!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("URL copied to clipboard"),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy, size: 16),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  SelectableText(
+                    user.profileImage!,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: kTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
