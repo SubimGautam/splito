@@ -11,8 +11,11 @@ final userProvider = FutureProvider<User>((ref) async {
   if (fixedUrl != null) {
     // For Android emulator, replace localhost with 10.0.2.2
     if (Platform.isAndroid && fixedUrl.contains('localhost')) {
-      fixedUrl = fixedUrl.replaceFirst('localhost', '10.0.2.2');
-    }
+      fixedUrl = fixedUrl.replaceFirst('localhost', '192.168.1.115');
+    }else if (fixedUrl.startsWith('/')) {
+    fixedUrl = 'http://192.168.1.115:5000$fixedUrl';
+  }
+  
     // Add cache buster
     fixedUrl = '$fixedUrl?t=${DateTime.now().millisecondsSinceEpoch}';
     print("👤 Final profile image URL: $fixedUrl");

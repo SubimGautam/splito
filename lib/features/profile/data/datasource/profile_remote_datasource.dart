@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileRemoteDataSource {
-  static const String baseUrl = "http://10.0.2.2:5000";
+  static const String baseUrl = "http://192.168.1.115:5000";
 
   Future<Map<String, dynamic>> uploadProfileImage(File imageFile) async {
     print("=" * 50);

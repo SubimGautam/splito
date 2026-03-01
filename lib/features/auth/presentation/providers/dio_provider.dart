@@ -4,12 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    baseUrl: 'http://10.0.2.2:5000/api', // Android emulator
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-    headers: {'Content-Type': 'application/json'},
-    validateStatus: (status) => true, // Don't throw on any status
-  ));
+  baseUrl: 'http://192.168.1.115:5000/api',  // Use your computer's IP
+  connectTimeout: const Duration(seconds: 10),
+  receiveTimeout: const Duration(seconds: 10),
+  headers: {'Content-Type': 'application/json'},
+));
 
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {

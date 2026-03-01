@@ -122,14 +122,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     
     // Handle localhost replacement for Android emulator
     if (imageUrl.contains('localhost')) {
-      imageUrl = imageUrl.replaceFirst('localhost', '10.0.2.2');
-      print("🔄 Replaced localhost with 10.0.2.2: $imageUrl");
-    } 
-    // Handle relative paths
-    else if (!imageUrl.startsWith('http')) {
-      imageUrl = 'http://10.0.2.2:5000$imageUrl';
-      print("🔄 Added base URL: $imageUrl");
-    }
+  imageUrl = imageUrl.replaceFirst('localhost', '192.168.1.115');
+} else if (!imageUrl.startsWith('http')) {
+  imageUrl = 'http://192.168.1.115:5000$imageUrl';
+}
     
     // Add cache-busting timestamp
     final timestamp = DateTime.now().millisecondsSinceEpoch;

@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../view_models/group_detail_view_model.dart';
 import '../view_models/add_expense_view_model.dart';
-import '../view_models/all_expenses_view_model.dart'; // for deleteExpenseProvider
+import '../view_models/all_expenses_view_model.dart';
+import '../view_models/settlement_view_model.dart'; // You'll need to create this
 import 'add_expense_screen.dart';
 import '../../domain/model/group_detail.dart';
 import '../../domain/model/balance.dart';
@@ -245,7 +246,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
             ),
           ),
 
-        // Balances Section
+        // Balances Section with Settle Up Button
         SliverToBoxAdapter(
           child: Container(
             margin: const EdgeInsets.all(16),
@@ -264,22 +265,61 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.account_balance_wallet, color: Color(0xFF22D3EE), size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Balances',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                    const Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet, color: Color(0xFF22D3EE), size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'Balances',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _showSettleUpModal(detail),
+                      icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                      label: const Text(
+                        'Settle Up',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF22D3EE),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 ...detail.balances.map((b) => _buildBalanceItem(b)),
+                
+                // Suggested settlements
+                if (_getSuggestedSettlements(detail.balances).isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(color: Color(0xFF2A3344)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '💡 Suggested Settlements',
+                    style: TextStyle(
+                      color: Color(0xFF22D3EE),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._getSuggestedSettlements(detail.balances).map((suggestion) => 
+                    _buildSuggestionItem(suggestion, detail.group.members),
+                  ),
+                ],
               ],
             ),
           ),
@@ -361,7 +401,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                       Icon(Icons.swap_horiz, color: Color(0xFF22D3EE), size: 24),
                       SizedBox(width: 8),
                       Text(
-                        'Settlements',
+                        'Settlement History',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -377,6 +417,253 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  void _showSettleUpModal(GroupDetail detail) {
+    String selectedFrom = detail.group.members.first;
+    String selectedTo = detail.group.members.length > 1 ? detail.group.members[1] : detail.group.members.first;
+    final amountController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1F2630),
+        title: const Text(
+          'Record Settlement',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: StatefulBuilder(
+          builder: (ctx, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // From dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedFrom,
+                  dropdownColor: const Color(0xFF171C24),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Who is paying?',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF2A3344)),
+                    ),
+                  ),
+                  items: detail.group.members.map((member) {
+                    return DropdownMenuItem(
+                      value: member,
+                      child: Text(member, style: const TextStyle(color: Colors.white)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        selectedFrom = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // To dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedTo,
+                  dropdownColor: const Color(0xFF171C24),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Who is receiving?',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF2A3344)),
+                    ),
+                  ),
+                  items: detail.group.members.map((member) {
+                    return DropdownMenuItem(
+                      value: member,
+                      child: Text(member, style: const TextStyle(color: Colors.white)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        selectedTo = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Amount input
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    prefixText: 'Rs ',
+                    prefixStyle: const TextStyle(color: Colors.white),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF2A3344)),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(amountController.text);
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid amount')),
+                );
+                return;
+              }
+              
+              if (selectedFrom == selectedTo) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cannot settle with yourself')),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx);
+              
+              try {
+  await ref.read(settlementViewModelProvider).createSettlement(
+    from: selectedFrom,
+    to: selectedTo,
+    amount: amount,
+    groupId: widget.groupId,
+  );
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('✓ Settlement recorded: $selectedFrom paid $selectedTo Rs $amount'),
+      backgroundColor: Colors.green,
+    ),
+  );
+  
+  // Refresh data
+  ref.read(groupDetailViewModelProvider.notifier).loadGroupDetail(widget.groupId);
+} catch (e) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Failed to record settlement: $e')),
+  );
+}
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF22D3EE),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Record'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getSuggestedSettlements(List<Balance> balances) {
+  final debtors = balances
+      .where((b) => b.amount < -0.01)
+      .map((b) => {'name': b.name, 'amount': b.amount.abs()})
+      .toList();
+  
+  // Safe sorting with null checks
+  debtors.sort((a, b) {
+    final aAmount = a['amount'] as double? ?? 0;
+    final bAmount = b['amount'] as double? ?? 0;
+    return bAmount.compareTo(aAmount);
+  });
+  
+  final creditors = balances
+      .where((b) => b.amount > 0.01)
+      .map((b) => {'name': b.name, 'amount': b.amount})
+      .toList();
+  
+  // Safe sorting with null checks
+  creditors.sort((a, b) {
+    final aAmount = a['amount'] as double? ?? 0;
+    final bAmount = b['amount'] as double? ?? 0;
+    return bAmount.compareTo(aAmount);
+  });
+
+  if (debtors.isEmpty || creditors.isEmpty) return [];
+
+  final suggestions = <Map<String, dynamic>>[];
+  int i = 0, j = 0;
+
+  while (i < debtors.length && j < creditors.length) {
+    final debtor = debtors[i];
+    final creditor = creditors[j];
+    
+    final debtorAmount = debtor['amount'] as double? ?? 0;
+    final creditorAmount = creditor['amount'] as double? ?? 0;
+    
+    final amount = debtorAmount < creditorAmount ? debtorAmount : creditorAmount;
+    
+    if (amount > 0.01) {
+      suggestions.add({
+        'from': debtor['name'],
+        'to': creditor['name'],
+        'amount': amount,
+      });
+    }
+
+    debtor['amount'] = debtorAmount - amount;
+    creditor['amount'] = creditorAmount - amount;
+
+    if ((debtor['amount'] as double? ?? 0) < 0.01) i++;
+    if ((creditor['amount'] as double? ?? 0) < 0.01) j++;
+  }
+
+  return suggestions;
+}
+
+  Widget _buildSuggestionItem(Map<String, dynamic> suggestion, List<String> members) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2630),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2A3344)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              '${suggestion['from']} → ${suggestion['to']}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          Text(
+            'Rs ${suggestion['amount'].toStringAsFixed(2)}',
+            style: const TextStyle(
+              color: Color(0xFF22D3EE),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

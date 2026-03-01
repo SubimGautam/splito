@@ -140,7 +140,7 @@ class _SignInScreenState extends State<SignInScreen> {
       final urls = [
         'http://localhost:5000/api/health',
         'http://127.0.0.1:5000/api/health',
-        'http://10.0.2.2:5000/api/health',
+        'http://192.168.1.115:5000/api/health',
       ];
       
       for (var url in urls) {

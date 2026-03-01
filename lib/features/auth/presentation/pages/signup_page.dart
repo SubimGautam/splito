@@ -111,7 +111,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final email = 'test_${DateTime.now().millisecondsSinceEpoch}@test.com';
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5000/api/auth/register'),
+        Uri.parse('http://192.168.1.115:5000/api/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "username": "testuser",
