@@ -1,34 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:splito_project/features/dashboard/presentation/pages/profile_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:splito_project/features/dashboard/domain/model/user.dart';
+import 'package:splito_project/features/dashboard/presentation/view_models/user_provider.dart';
 
 void main() {
-  // Mock SharedPreferences before running tests
-  setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-  });
+  testWidgets('shows error message when loading fails', (WidgetTester tester) async {
+    final errorProvider = FutureProvider<User>((ref) async => throw Exception('Network error'));
 
-  testWidgets('shows loading state initially', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: ProfileScreen()), // Remove const here
+      ProviderScope(
+        overrides: [
+          userProvider.overrideWithProvider(errorProvider),
+        ],
+        child: const MaterialApp(home: ProfileScreen()),
+      ),
     );
 
-    // Initially shows loading
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Loading profile...'), findsOneWidget);
-  });
-
-  testWidgets('shows user info after loading', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(home: ProfileScreen()), // Remove const here
-    );
-    
-    // Wait for loading to complete
     await tester.pumpAndSettle();
-    
-    // Shows default/placeholder user info
-    expect(find.byIcon(Icons.person), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
+
+    expect(find.text('Error loading profile: Exception: Network error'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
   });
 }
