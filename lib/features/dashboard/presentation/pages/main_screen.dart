@@ -9,6 +9,8 @@ import 'group_detail_screen.dart';
 import 'profile_screen.dart';
 import '../../domain/model/group.dart';
 import '../../domain/model/expense.dart';
+import 'package:proximity_sensor/proximity_sensor.dart';
+import 'dart:async';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -20,9 +22,35 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _selectedIndex = 0;
 
+  StreamSubscription<dynamic>? _proximitySubscription;
+  bool _isNear = false;
+
+  @override
+void initState() {
+  super.initState();
+
+  _proximitySubscription = ProximitySensor.events.listen((event) {
+    setState(() {
+      _isNear = event > 0;
+    });
+  });
+}
+  @override
+void dispose() {
+  _proximitySubscription?.cancel();
+  super.dispose();
+}
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+
+  if (_isNear) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+    );
+  }
+
+  return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
         children: const [

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
 import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
 import 'package:splito_project/features/auth/data/datasource/remote/remote_auth_datasource.dart';
+import 'package:splito_project/features/auth/presentation/pages/login_page.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -48,63 +49,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    final username = _usernameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final confirmPassword = _confirmPasswordController.text;
+  final username = _usernameController.text.trim();
+  final email = _emailController.text.trim();
+  final password = _passwordController.text;
+  final confirmPassword = _confirmPasswordController.text;
 
-    if (username.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      _showSnackBar('Please fill in all fields');
-      return;
-    }
+  if (username.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    _showSnackBar('Please fill in all fields');
+    return;
+  }
 
-    if (password.length < 6) {
-      _showSnackBar('Password must be at least 6 characters');
-      return;
-    }
+  if (password.length < 6) {
+    _showSnackBar('Password must be at least 6 characters');
+    return;
+  }
 
-    if (password != confirmPassword) {
-      _showSnackBar('Passwords do not match');
-      return;
-    }
+  if (password != confirmPassword) {
+    _showSnackBar('Passwords do not match');
+    return;
+  }
 
-    if (!_agree) {
-      _showSnackBar('Please agree to Terms & Policy');
-      return;
-    }
+  if (!_agree) {
+    _showSnackBar('Please agree to Terms & Policy');
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      final result = await _remoteAuthDataSource.signUp(
-        username,
-        email,
-        password,
-        confirmPassword,
+  try {
+    final result = await _remoteAuthDataSource.signUp(
+      username,
+      email,
+      password,
+      confirmPassword,
+    );
+
+    await _localAuthDataSource.saveCredentials(email, password);
+
+    if (mounted) {
+      _showSnackBar('Account created successfully! Please log in.');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SignInScreen()),
       );
-
-      await _localAuthDataSource.saveCredentials(email, password);
-
-      if (mounted) {
-        _showSnackBar('Account created successfully!');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar('Registration failed: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    }
+  } catch (e) {
+    if (mounted) {
+      _showSnackBar('Registration failed: $e');
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _testDirectApiCall() async {
     try {

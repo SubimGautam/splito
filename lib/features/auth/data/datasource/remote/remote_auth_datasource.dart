@@ -13,6 +13,15 @@ abstract class RemoteAuthDataSource {
   Future<Map<String, dynamic>> signIn(String email, String password);
   Future<Map<String, dynamic>> getProfile();
   Future<void> logout();
+  
+  // Add these new methods
+  Future<Map<String, dynamic>> forgotPassword(String email);
+  Future<Map<String, dynamic>> resetPassword(
+    String token,
+    String email,
+    String password,
+    String confirmPassword,
+  );
 }
 
 class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
@@ -26,7 +35,6 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
       await prefs.setString('auth_token', token);
       print('💾 Token saved to SharedPreferences: ${token.substring(0, min(20, token.length))}...');
       
-      // Verify it was saved
       final savedToken = prefs.getString('auth_token');
       print('🔍 Token verification: ${savedToken != null ? 'SAVED' : 'NOT SAVED'}');
       if (savedToken != null) {
@@ -58,17 +66,13 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
 
       print('✅ API Response: $response');
 
-      // Fixed: Extract data correctly
       if (response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>;
         
         if (data['token'] != null) {
           final token = data['token'] as String;
           
-          // ✅ Save to ApiService
           ApiService.setToken(token);
-          
-          // ✅ CRITICAL: Also save to SharedPreferences
           await _saveTokenToSharedPreferences(token);
           
           print('🔑 Token saved successfully: ${token.substring(0, min(20, token.length))}...');
@@ -101,17 +105,13 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
 
       print('✅ API Response: $response');
 
-      // Fixed: Extract data correctly
       if (response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>;
         
         if (data['token'] != null) {
           final token = data['token'] as String;
           
-          // ✅ Save to ApiService
           ApiService.setToken(token);
-          
-          // ✅ CRITICAL: Also save to SharedPreferences
           await _saveTokenToSharedPreferences(token);
           
           print('🔑 Token saved successfully: ${token.substring(0, min(20, token.length))}...');
@@ -128,6 +128,60 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
     } catch (e) {
       print('❌ ===== REMOTE LOGIN FAILED =====');
       print('❌ Error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      print('🚀 ===== FORGOT PASSWORD START =====');
+      print('📧 Email: $email');
+
+      final response = await ApiService.post('auth/forgot-password', {
+        'email': email,
+      });
+
+      print('✅ API Response: $response');
+
+      if (response['success'] == true) {
+        return response['data'] ?? {};
+      } else {
+        throw Exception(response['message'] ?? 'Failed to send reset email');
+      }
+    } catch (e) {
+      print('❌ Forgot password error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> resetPassword(
+    String token,
+    String email,
+    String password,
+    String confirmPassword,
+  ) async {
+    try {
+      print('🚀 ===== RESET PASSWORD START =====');
+      print('📧 Email: $email');
+
+      final response = await ApiService.post('auth/reset-password', {
+        'token': token,
+        'email': email,
+        'password': password,
+        'confirmPassword': confirmPassword,
+      });
+
+      print('✅ API Response: $response');
+
+      if (response['success'] == true) {
+        return response['data'] ?? {};
+      } else {
+        throw Exception(response['message'] ?? 'Failed to reset password');
+      }
+    } catch (e) {
+      print('❌ Reset password error: $e');
       rethrow;
     }
   }
@@ -151,10 +205,8 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
 
   @override
   Future<void> logout() async {
-    // Clear from ApiService
     ApiService.clearToken();
     
-    // Also clear from SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');

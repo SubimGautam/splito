@@ -2,24 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/model/group.dart';
 import '../../data/datasource/remote/group_remote_datasource.dart';
 
-final groupsViewModelProvider = StateNotifierProvider<GroupsViewModel, AsyncValue<List<Group>>>((ref) {
-  final dataSource = ref.watch(groupRemoteDataSourceProvider);
-  return GroupsViewModel(dataSource);
-});
-
-class GroupsViewModel extends StateNotifier<AsyncValue<List<Group>>> {
+// Add this notifier class
+class GroupsViewModelNotifier extends StateNotifier<AsyncValue<List<Group>>> {
   final GroupRemoteDataSource _dataSource;
-  GroupsViewModel(this._dataSource) : super(const AsyncValue.loading());
+  
+  GroupsViewModelNotifier(this._dataSource) : super(const AsyncValue.loading());
 
   Future<void> loadGroups() async {
-    print('loadGroups called');
     state = const AsyncValue.loading();
     try {
       final groups = await _dataSource.getGroups();
-      print('loadGroups success, count: ${groups.length}');
       state = AsyncValue.data(groups);
     } catch (e, st) {
-      print('loadGroups error: $e');
       state = AsyncValue.error(e, st);
     }
   }
@@ -42,3 +36,8 @@ class GroupsViewModel extends StateNotifier<AsyncValue<List<Group>>> {
     }
   }
 }
+
+final groupsViewModelProvider = StateNotifierProvider<GroupsViewModelNotifier, AsyncValue<List<Group>>>((ref) {
+  final dataSource = ref.watch(groupRemoteDataSourceProvider);
+  return GroupsViewModelNotifier(dataSource);
+});

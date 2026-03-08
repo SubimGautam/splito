@@ -234,7 +234,8 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // You can implement forgot password later
+                       Navigator.pushNamed(context, '/forgot-password');
+                      
                     },
                     child: Text(
                       'Forgot password?',
