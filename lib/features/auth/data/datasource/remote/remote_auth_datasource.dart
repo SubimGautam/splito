@@ -14,13 +14,13 @@ abstract class RemoteAuthDataSource {
   Future<Map<String, dynamic>> getProfile();
   Future<void> logout();
   
-  // Add these new methods
+  // Forgot password methods
   Future<Map<String, dynamic>> forgotPassword(String email);
+  Future<Map<String, dynamic>> verifyCode(String email, String code);
   Future<Map<String, dynamic>> resetPassword(
-    String token,
-    String email,
-    String password,
-    String confirmPassword,
+    String resetToken, 
+    String password, 
+    String confirmPassword
   );
 }
 
@@ -147,7 +147,7 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
-        throw Exception(response['message'] ?? 'Failed to send reset email');
+        throw Exception(response['message'] ?? 'Failed to send reset code');
       }
     } catch (e) {
       print('❌ Forgot password error: $e');
@@ -156,21 +156,15 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> resetPassword(
-    String token,
-    String email,
-    String password,
-    String confirmPassword,
-  ) async {
+  Future<Map<String, dynamic>> verifyCode(String email, String code) async {
     try {
-      print('🚀 ===== RESET PASSWORD START =====');
+      print('🚀 ===== VERIFY CODE START =====');
       print('📧 Email: $email');
+      print('🔑 Code: $code');
 
-      final response = await ApiService.post('auth/reset-password', {
-        'token': token,
+      final response = await ApiService.post('auth/verify-code', {
         'email': email,
-        'password': password,
-        'confirmPassword': confirmPassword,
+        'code': code,
       });
 
       print('✅ API Response: $response');
@@ -178,7 +172,35 @@ class RemoteAuthDataSourceImpl implements RemoteAuthDataSource {
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
-        throw Exception(response['message'] ?? 'Failed to reset password');
+        throw Exception(response['message'] ?? 'Invalid code');
+      }
+    } catch (e) {
+      print('❌ Verify code error: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> resetPassword(
+    String resetToken, 
+    String password, 
+    String confirmPassword
+  ) async {
+    try {
+      print('🚀 ===== RESET PASSWORD START =====');
+
+      final response = await ApiService.post('auth/reset-password', {
+        'resetToken': resetToken,
+        'password': password,
+        'confirmPassword': confirmPassword,
+      });
+
+      print('✅ API Response: $response');
+
+      if (response['success'] == true) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'Password reset failed');
       }
     } catch (e) {
       print('❌ Reset password error: $e');

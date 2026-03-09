@@ -4,12 +4,12 @@ import 'package:splito_project/features/auth/presentation/providers/auth_provide
 import 'package:splito_project/features/auth/presentation/pages/login_page.dart';
 
 class ResetPasswordPage extends ConsumerStatefulWidget {
-  final String token;
+  final String resetToken;
   final String email;
 
   const ResetPasswordPage({
     super.key,
-    required this.token,
+    required this.resetToken,
     required this.email,
   });
 
@@ -28,7 +28,6 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
 
   static const Color kBackground = Color(0xFF0F1217);
   static const Color kSurface = Color(0xFF171C24);
-  static const Color kSurfaceElevated = Color(0xFF1F2630);
   static const Color kTextPrimary = Color(0xFFF8FAFC);
   static const Color kTextSecondary = Color(0xFF94A3B8);
   static const Color kAccent = Color(0xFF22D3EE);
@@ -43,41 +42,31 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   }
 
   Future<void> _resetPassword() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() {
-    _isLoading = true;
-  });
+    setState(() => _isLoading = true);
 
-  try {
-    // Call the API to reset password - USE NAMED PARAMETERS
-    await ref.read(authViewModelProvider.notifier).resetPassword(
-      token: widget.token,
-      email: widget.email,
-      password: _passwordController.text,
-      confirmPassword: _confirmPasswordController.text,
-    );
-    
-    setState(() {
-      _passwordReset = true;
-    });
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to reset password: $e'),
-          backgroundColor: Colors.red,
-        ),
+    try {
+      await ref.read(authViewModelProvider.notifier).resetPassword(
+        widget.resetToken,
+        _passwordController.text,
+        _confirmPasswordController.text,
       );
-    }
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      
+      setState(() => _passwordReset = true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reset password: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_provider.dart'; // Imports remoteAuthDataSourceProvider and localAuthDataSourceProvider
+import '../providers/auth_provider.dart';
 import '../../data/datasource/remote/remote_auth_datasource.dart';
 import '../../data/datasource/local/local_auth_datasource.dart';
 
-// Provider for AuthViewModel
 final authViewModelProvider = StateNotifierProvider<AuthViewModel, AsyncValue<Map<String, dynamic>?>>((ref) {
   final remoteDataSource = ref.watch(remoteAuthDataSourceProvider);
   final localDataSource = ref.watch(localAuthDataSourceProvider);
@@ -16,7 +15,6 @@ class AuthViewModel extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
   
   AuthViewModel(this._remoteDataSource, this._localDataSource) : super(const AsyncValue.data(null));
 
-  /// Sign in with email and password
   Future<void> signIn(String email, String password, bool rememberMe) async {
     state = const AsyncValue.loading();
     try {
@@ -33,7 +31,6 @@ class AuthViewModel extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
     }
   }
 
-  /// Sign up a new user
   Future<void> signUp({
     required String username,
     required String email,
@@ -55,7 +52,6 @@ class AuthViewModel extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
     }
   }
 
-  /// Send password reset email
   Future<void> forgotPassword(String email) async {
     state = const AsyncValue.loading();
     try {
@@ -67,21 +63,22 @@ class AuthViewModel extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
     }
   }
 
-  /// Reset password with token
-  Future<void> resetPassword({
-    required String token,
-    required String email,
-    required String password,
-    required String confirmPassword,
-  }) async {
+  Future<Map<String, dynamic>> verifyCode(String email, String code) async {
     state = const AsyncValue.loading();
     try {
-      final result = await _remoteDataSource.resetPassword(
-        token,
-        email,
-        password,
-        confirmPassword,
-      );
+      final result = await _remoteDataSource.verifyCode(email, code);
+      state = AsyncValue.data(result);
+      return result;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword(String resetToken, String password, String confirmPassword) async {
+    state = const AsyncValue.loading();
+    try {
+      final result = await _remoteDataSource.resetPassword(resetToken, password, confirmPassword);
       state = AsyncValue.data(result);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -89,7 +86,6 @@ class AuthViewModel extends StateNotifier<AsyncValue<Map<String, dynamic>?>> {
     }
   }
 
-  /// Log out current user
   Future<void> logout() async {
     await _remoteDataSource.logout();
     state = const AsyncValue.data(null);

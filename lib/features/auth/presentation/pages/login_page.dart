@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:splito_project/features/dashboard/presentation/pages/home_screen.dart';
 import 'package:splito_project/features/auth/presentation/pages/signup_page.dart';
+import 'package:splito_project/features/auth/presentation/pages/forgot_password_page.dart'; // Add this import
 import 'package:splito_project/features/auth/data/datasource/local/local_auth_datasource.dart';
 import 'package:splito_project/features/auth/data/datasource/remote/remote_auth_datasource.dart';
 
@@ -65,7 +66,6 @@ class _SignInScreenState extends State<SignInScreen> {
       
       print('✅ Remote login successful: $result');
       
-      // ✅ ADD THIS: Debug token storage after login
       await _debugTokenStorage();
       
       if (_rememberMe) {
@@ -90,9 +90,6 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
-  
-
-  // Helper method for min function
   int min(int a, int b) => a < b ? a : b;
 
   Future<void> _debugTokenStorage() async {
@@ -109,13 +106,10 @@ class _SignInScreenState extends State<SignInScreen> {
       print("   • $key: $value");
     }
     
-    // Check specifically for token
     final token = prefs.getString('auth_token');
     if (token == null) {
       print("❌❌❌ NO TOKEN FOUND!");
-      print("The token is NOT being saved after login!");
       
-      // Check for other possible token keys
       final token1 = prefs.getString('token');
       final token2 = prefs.getString('jwt_token');
       final token3 = prefs.getString('jwt');
@@ -232,10 +226,11 @@ class _SignInScreenState extends State<SignInScreen> {
                       const Text('Remember me', style: TextStyle(fontSize: 14, color: kTextSecondary)),
                     ],
                   ),
+                  // FIXED: This is the forgot password button that wasn't working
                   GestureDetector(
                     onTap: () {
-                       Navigator.pushNamed(context, '/forgot-password');
-                      
+                      // Navigate to forgot password page
+                      Navigator.pushNamed(context, '/forgot-password');
                     },
                     child: Text(
                       'Forgot password?',
